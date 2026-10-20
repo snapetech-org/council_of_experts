@@ -82,3 +82,7 @@ Each scan class plus each Roslyn analyzer plus each negative-space boundary is o
 ## License
 
 MIT. See `LICENSE`.
+
+## Local security scanning
+
+Run `./scripts/security-scan-local.sh` for local Semgrep CE and the Trivy scanners that fit this repository. The installed pre-commit hook runs Semgrep on staged source/config files only; Trivy runs on demand or in CI. This public repository also runs Semgrep CE in GitHub Actions on changes and weekly. See [security-scanning.md](docs/security-scanning.md). Use `./scripts/update-security-tools.sh` to refresh local scanner data and the Trivy database.
