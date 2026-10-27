@@ -1,83 +1,39 @@
 # Council of Experts
 
-A reusable bug-finding workflow that goes beyond regex linting to find higher-severity, deeper-fix bugs across a codebase. Extracted from the [slskNet.Runtime](https://github.com/snapetech/slskNet.Runtime) project where it has been used to drive multiple full sweeps of a network protocol implementation.
+This repository contains templates for handling **confirmed findings** and making fixes durable through focused regression checks. General source, dependency, secret, and configuration scanning belongs to the existing Semgrep and Trivy workflows; the Council templates no longer include candidate scanners, generated bughunt reports, sweep-count gates, or custom Roslyn analyzers.
 
-The council is a small, opinionated process layered on top of a few language-agnostic scripts. It is **not** a tool you install; it is a set of templates you copy into your repo and adapt.
+## What remains
 
-## What the council does that linting does not
-
-| Layer | What it catches |
+| Template | Purpose |
 | --- | --- |
-| **Inventory-first regex sweep** | Surface patterns: mutable public state, raw byte arrays, length-prefix reads, lifecycle missteps, secret material. |
-| **Severity / confidence schema** | Forces every accepted finding to be tiered, so triage is legible across hundreds of rows. |
-| **Sibling-search rule** | When a fix lands, the same shape is swept across the codebase before the row is closed. |
-| **Negative-space gate** | Declares trust boundaries by name and asserts each one's required validator is in place — catches the boundary you forgot to think about. |
-| **Behavior-pinning pattern** | Every text-anchored fix gate has a paired behavior test, so a refactor that erases the guard fails in two places. |
-| **Roslyn analyzer template (.NET)** | Semantic taint lens guidance for allocation, loop-bound, stream-position, file-path, timeout, endpoint, enum/status, and slice-bound sink families; ports high-severity scan classes from regex to dataflow. |
-| **Calibration and fuzz templates** | Deliberate mutations, known-good validator paths, multi-seed adversarial corpora, and hostile boundary inputs that keep zero-finding runs honest. |
-| **Phase tracker** | Multi-phase upgrades are resumable across sessions and across agents. |
+| Remediation ledger and severity schema | Track reported and confirmed findings through a fix. |
+| Sibling-search guidance | Check related call sites after a specific issue is confirmed. |
+| Negative-space gate | Keep known trust-boundary validators and their regression anchors wired. |
+| Behavior-pinning guidance | Add a focused runtime test for each confirmed fix. |
+| Adversarial fuzz guidance | Preserve hostile inputs that reproduce a known failure mode. |
+| Regression phase tracker | Keep focused remediation and regression work resumable. |
 
 ## Repository layout
 
-```
+```text
 council_of_experts/
 ├── README.md
 ├── LICENSE
 ├── templates/
-│   ├── scripts/                    # bash gates, language-agnostic
-│   │   ├── scan-bug-council-candidates.sh
-│   │   ├── run-council-active-bughunt.sh
-│   │   ├── check-council-sweep-counts.sh
-│   │   ├── check-remediation-baseline.sh
-│   │   ├── check-council-negative-space.sh
-│   │   ├── check-council-active-backlog.sh
-│   │   ├── run-bug-council-all-phases.sh
-│   │   └── check-bug-council-all-phases.sh
-│   ├── docs/                       # process docs, drop-in
-│   │   ├── bug-council-phases.md
-│   │   ├── bug-council-scan-registry.md
-│   │   ├── bug-council-severity-schema.md
-│   │   ├── bug-council-sibling-search.md
-│   │   ├── bug-council-negative-space.md
-│   │   ├── bug-council-behavior-pinning.md
-│   │   ├── bug-council-active-backlog.md
-│   │   ├── bug-council-adversarial-fuzz.md
-│   │   ├── bug-burndown-ledger.md
-│   │   └── bug-council-roslyn-analyzers.md
-│   └── analyzers/csharp/           # Roslyn analyzer template
-│       ├── CouncilAnalyzers/
-│       ├── CouncilAnalyzers.Tests/
-│       └── CouncilAnalyzers.Calibration/
-└── examples/                       # short worked examples per ecosystem
-    ├── dotnet/
-    ├── rust/
-    └── typescript/
+│   ├── scripts/       # remediation, boundary, and regression gates
+│   └── docs/          # ledger, fix, boundary, and regression guidance
+└── examples/          # short examples per ecosystem
 ```
 
-## How to import the council into a repo
+## How to use the templates
 
-The council is intentionally not a package. Adapting it forces you to name your own boundaries, which is half the value.
+1. Use the repository's Semgrep and Trivy workflows for broad source, dependency, secret, and configuration scans.
+2. When a finding is confirmed, record it in the remediation ledger, classify its severity, and implement the fix.
+3. Add a focused behavior test and check related call sites for the same confirmed issue.
+4. Update the remediation baseline and negative-space gate for the affected boundary.
+5. Run the repository's regression command and its normal test suite.
 
-1. Copy `templates/scripts/*` into `your-repo/scripts/`. Adapt the regex patterns in `scan-bug-council-candidates.sh`, suspicious-shape queues in `run-council-active-bughunt.sh`, and project-specific commands in `run-bug-council-all-phases.sh` to your language and project layout. Keep the eight-script structure: scanner, active bughunt queue, active backlog gate, sweep-count drift gate, remediation baseline, negative-space gate, all-phases runner, and all-phases registration gate.
-2. Copy `templates/docs/*` into `your-repo/docs/dev/` (or wherever your dev docs live). The schema, sibling-search, and behavior-pinning docs are language-agnostic and drop in unchanged. The phases, registry, ledger, and negative-space docs need a first pass to reflect your codebase.
-3. Decide if you need a Roslyn analyzer (only for .NET). If yes, copy `templates/analyzers/csharp/` into `your-repo/analyzers/`, reference it from your runtime project as `OutputItemType="Analyzer" ReferenceOutputAssembly="false"`, and keep the calibration project in CI.
-4. Wire `run-bug-council-all-phases.sh` into CI or your agent handoff command, and wire `check-bug-council-all-phases.sh` into `check-remediation-baseline.sh`. The scanner is informational; the all-phases runner is the council cycle.
-5. Add the **negative-space boundaries** for your code. This is the single most valuable per-repo step — the rest of the council does nothing if you have not declared what your trust boundaries are.
-
-## Workflow per sweep
-
-1. Run `run-bug-council-all-phases.sh` to refresh candidate inventory, refresh the active bughunt queue, refresh the active backlog gate, and execute every council phase in one command.
-2. Pick one active backlog pile or scan section. Open a new dated sweep register in `docs/dev/bug-council-sweep-<YYYY-MM-DD>-<topic>.md`.
-3. Convert the section into a table; add severity/confidence per `bug-council-severity-schema.md`.
-4. For each row, classify as `Accepted`, `Existing guard`, `False positive`, or `Out of scope`.
-5. For each `Accepted`, fix it, run the sibling search, write a behavior test.
-6. Add a `require_pattern` and behavior test to the remediation baseline.
-7. Update sweep counts and active backlog rows; `check-council-active-backlog.sh`, `check-council-sweep-counts.sh`, and `check-remediation-baseline.sh` must stay green.
-8. Close the register only when every row is non-`Unclassified`.
-
-## Why "council of experts"
-
-Each scan class plus each Roslyn analyzer plus each negative-space boundary is one expert lens. Together they cover what a single linter or a single reviewer cannot. The council process is the discipline that keeps the lenses honest: every finding is named, tiered, ledgered, fixed, sibling-swept, and pinned by a behavior test. The cost is one ratchet per finding; the payoff is that the codebase ratchets only forward.
+The templates do not generate candidate queues or claim that a clean scan proves the absence of bugs.
 
 ## License
 

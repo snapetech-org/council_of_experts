@@ -41,7 +41,7 @@ Pinned by `tests/Soulseek.Tests.Unit/Messaging/Messages/ProtocolCountHardeningTe
 
 ## Authoring rule
 
-When a sweep row is closed as Fixed, the closing rationale lists:
+When a confirmed finding is marked Fixed, its remediation note lists:
 
 - The text gate added or already present.
 - The behavior test added or already present.
@@ -50,7 +50,7 @@ If a behavior test cannot exist (e.g. the gate is purely structural — file exi
 
 ## What this pattern does not do
 
-This pattern does not catch every behavior regression. It is a forcing function: every fix has at least one named test that asserts the runtime behavior of the fix. Deeper regression coverage is the job of the protocol fuzz harness (Phase 3) and the Roslyn analyzers (Phase 2), which assert properties across all sites at once.
+This pattern does not catch every behavior regression. It is a forcing function: every fix has at least one named test that asserts the runtime behavior of the fix. Broader source and dependency scanning belongs to Semgrep and Trivy; the protocol fuzz harness adds runtime regression coverage for hostile inputs.
 
 ## Why this matters
 
